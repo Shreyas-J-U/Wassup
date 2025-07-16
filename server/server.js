@@ -7,56 +7,66 @@ import userRouter from "./routes/userRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
 import { Server } from "socket.io";
 
-// Create Express app and HTTP server
+// ====== CONFIGURATION ======
+const FRONTEND_ORIGIN = "https://wassup-1fmu12y3v-shreyas-j-us-projects.vercel.app";
+const PORT = process.env.PORT || 5000;
+
+// ====== EXPRESS SETUP ======
 const app = express();
 const server = http.createServer(app);
 
-// Initialize socket.io server
-export const io = new Server(server, {
-  cors: {
-  origin: "https://wassup-1fmu12y3v-shreyas-j-us-projects.vercel.app",
-  methods: ["GET", "POST"],
-  credentials: true,
-},
+// CORS Middleware for HTTP APIs
+app.use(
+  cors({
+    origin: FRONTEND_ORIGIN,
+    credentials: true,
+  })
+);
 
-});
-
-// Store online users
-export const userSocketMap = {}; // {userId:socketId}
-
-// Socket.io connection handler
-io.on("connection", (socket) => {
-  const userId = socket.handshake.query.userId;
-  console.log("User Connected", userId);
-
-  if (userId) {
-    userSocketMap[userId] = socket.id;
-  }
-  //   Emit online users to all connected clients
-  io.emit("getOnlineUsers", Object.keys(userSocketMap));
-  socket.on("disconnect", () => {
-    console.log("User Disconnected", userId);
-    delete userSocketMap[userId];
-    io.emit("getOnlineUser", Object.keys(userSocketMap));
-  });
-});
-
-// Middleware setup
 app.use(express.json({ limit: "4mb" }));
-app.use(cors());
 
-// Routes setup
+// ====== ROUTES ======
 app.use("/api/status", (req, res) => res.send("Server is live"));
 app.use("/api/auth", userRouter);
 app.use("/api/messages", messageRouter);
 
-// Connect to MongoDB
+// ====== SOCKET.IO SETUP ======
+export const io = new Server(server, {
+  cors: {
+    origin: FRONTEND_ORIGIN,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+export const userSocketMap = {}; // { userId: socketId }
+
+io.on("connection", (socket) => {
+  const userId = socket.handshake.query.userId;
+  console.log("User Connected:", userId);
+
+  if (userId) {
+    userSocketMap[userId] = socket.id;
+  }
+
+  io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
+  socket.on("disconnect", () => {
+    console.log("User Disconnected:", userId);
+    delete userSocketMap[userId];
+    io.emit("getOnlineUsers", Object.keys(userSocketMap)); // fixed typo: "getOnlineUser" → "getOnlineUsers"
+  });
+});
+
+// ====== DATABASE CONNECTION ======
 await connectDB();
 
+// ====== START SERVER (for dev only) ======
 if (process.env.NODE_ENV !== "production") {
-  const PORT = process.env.PORT || 5000;
-
-  server.listen(PORT, () => console.log("Server is running on PORT " + PORT));
+  server.listen(PORT, () =>
+    console.log("Server is running on PORT " + PORT)
+  );
 }
-// Export server for vercel
+
+// Export for Vercel
 export default server;
