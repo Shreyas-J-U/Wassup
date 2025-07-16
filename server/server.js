@@ -11,18 +11,18 @@ import { Server } from "socket.io";
 const app = express();
 const server = http.createServer(app);
 
-// Define allowed origins (add your frontend deployment URL here)
 const allowedOrigins = [
-  "https://wassup-black.vercel.app", // Your frontend domain
+  "https://wassup-1fmu12y3v-shreyas-j-us-projects.vercel.app", // ✅ frontend Vercel domain
+  "http://localhost:5173", // ✅ for local dev
 ];
 
-// Apply CORS middleware with credentials
 app.use(
   cors({
     origin: allowedOrigins,
-    credentials: true,
+    credentials: true, // ✅ allows cookies/token if needed
   })
 );
+
 
 // Initialize socket.io server with proper CORS config
 export const io = new Server(server, {
