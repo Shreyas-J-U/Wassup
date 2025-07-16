@@ -7,30 +7,28 @@ import userRouter from "./routes/userRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
 import { Server } from "socket.io";
 
-// ====== CONFIGURATION ======
 const FRONTEND_ORIGIN = "https://wassup-1fmu12y3v-shreyas-j-us-projects.vercel.app";
 const PORT = process.env.PORT || 5000;
 
-// ====== EXPRESS SETUP ======
 const app = express();
 const server = http.createServer(app);
 
-// CORS Middleware for HTTP APIs
+// ✅ CORS for APIs
 app.use(
   cors({
     origin: FRONTEND_ORIGIN,
     credentials: true,
+    allowedHeaders: ["Content-Type", "token"],
   })
 );
-
 app.use(express.json({ limit: "4mb" }));
 
-// ====== ROUTES ======
+// ✅ Routes
 app.use("/api/status", (req, res) => res.send("Server is live"));
 app.use("/api/auth", userRouter);
 app.use("/api/messages", messageRouter);
 
-// ====== SOCKET.IO SETUP ======
+// ✅ Socket.IO CORS
 export const io = new Server(server, {
   cors: {
     origin: FRONTEND_ORIGIN,
@@ -39,7 +37,7 @@ export const io = new Server(server, {
   },
 });
 
-export const userSocketMap = {}; // { userId: socketId }
+export const userSocketMap = {};
 
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
@@ -54,19 +52,23 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("User Disconnected:", userId);
     delete userSocketMap[userId];
-    io.emit("getOnlineUsers", Object.keys(userSocketMap)); // fixed typo: "getOnlineUser" → "getOnlineUsers"
+    io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 });
 
-// ====== DATABASE CONNECTION ======
+// ✅ Global error fallback (for CORS on 401s, etc.)
+app.use((err, req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.status(err.status || 500).json({ error: err.message });
+});
+
 await connectDB();
 
-// ====== START SERVER (for dev only) ======
 if (process.env.NODE_ENV !== "production") {
   server.listen(PORT, () =>
     console.log("Server is running on PORT " + PORT)
   );
 }
 
-// Export for Vercel
 export default server;
