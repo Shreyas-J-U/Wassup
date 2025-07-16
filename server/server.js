@@ -11,29 +11,13 @@ import { Server } from "socket.io";
 const app = express();
 const server = http.createServer(app);
 
-const allowedOrigins = [
-  "https://wassup-1fmu12y3v-shreyas-j-us-projects.vercel.app", // ✅ frontend Vercel domain
-  "http://localhost:5173", // ✅ for local dev
-];
-
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true, // ✅ allows cookies/token if needed
-  })
-);
-
-
-// Initialize socket.io server with proper CORS config
+// Initialize socket.io server
 export const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true,
-  },
+  cors: { origin: "*" },
 });
 
 // Store online users
-export const userSocketMap = {}; // { userId: socketId }
+export const userSocketMap = {}; // {userId:socketId}
 
 // Socket.io connection handler
 io.on("connection", (socket) => {
@@ -43,21 +27,20 @@ io.on("connection", (socket) => {
   if (userId) {
     userSocketMap[userId] = socket.id;
   }
-
-  // Emit online users to all connected clients
+  //   Emit online users to all connected clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
-
   socket.on("disconnect", () => {
     console.log("User Disconnected", userId);
     delete userSocketMap[userId];
-    io.emit("getOnlineUsers", Object.keys(userSocketMap));
+    io.emit("getOnlineUser", Object.keys(userSocketMap));
   });
 });
 
 // Middleware setup
 app.use(express.json({ limit: "4mb" }));
+app.use(cors());
 
-// Routes
+// Routes setup
 app.use("/api/status", (req, res) => res.send("Server is live"));
 app.use("/api/auth", userRouter);
 app.use("/api/messages", messageRouter);
@@ -65,11 +48,10 @@ app.use("/api/messages", messageRouter);
 // Connect to MongoDB
 await connectDB();
 
-// Run server in development only
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 5000;
+
   server.listen(PORT, () => console.log("Server is running on PORT " + PORT));
 }
-
-// Export server for serverless deployment (e.g., Vercel)
+// Export server for vercel
 export default server;
