@@ -17,22 +17,24 @@ export const io = new Server(server, {
 });
 
 // Store online users
-export const userSocketMap = {}; // {userId:socketId}
+export const userSocketMap = {}; // { userId: socketId }
 
 // Socket.io connection handler
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
-  console.log("User Connected", userId);
+  console.log("User Connected:", userId);
 
   if (userId) {
     userSocketMap[userId] = socket.id;
   }
-  //   Emit online users to all connected clients
+
+  // Emit list of online users to all clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
   socket.on("disconnect", () => {
-    console.log("User Disconnected", userId);
+    console.log("User Disconnected:", userId);
     delete userSocketMap[userId];
-    io.emit("getOnlineUser", Object.keys(userSocketMap));
+    io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 });
 
@@ -40,17 +42,15 @@ io.on("connection", (socket) => {
 app.use(express.json({ limit: "4mb" }));
 app.use(cors());
 
-// Routes setup
+// Routes
 app.use("/api/status", (req, res) => res.send("Server is live"));
 app.use("/api/auth", userRouter);
 app.use("/api/messages", messageRouter);
 
-// Connect to MongoDB
+// Connect to MongoDB and start server
 await connectDB();
 
-if (process.env.NODE_ENV !== "production") {
-  const PORT = process.env.PORT || 5000;
-  server.listen(PORT, () => console.log("Server is running on PORT " + PORT));
-}
-// Export server for vercel
-// export default server;
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log("Server is running on PORT", PORT);
+});
